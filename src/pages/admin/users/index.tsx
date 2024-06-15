@@ -2,24 +2,13 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Inter } from "next/font/google";
 import React, { useEffect, useState } from "react";
-import { getJWTPayload, removeToken, useCheckToken } from "@/utils/cookie";
-import {
-  Course,
-  CourseClass,
-  ProcessedCoursesResult,
-} from "@/interfaces/course";
-import { extractUserData } from "@/utils/user";
-import { Card } from "@/components/ui/card";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { removeToken, useCheckToken } from "@/utils/cookie";
+import { ProcessedCoursesResult } from "@/interfaces/course";
 import { fetchDataAuthenticated } from "@/utils/http";
 import { useRouter } from "next/navigation";
 import { User } from "@/interfaces/user";
-import { processUserSemesters, properSemester } from "@/utils/semester";
-import { ProcessedUserWithSemesters, SemesterOfUser } from "@/interfaces/semester";
+import { processUserSemesters } from "@/utils/semester";
+import { ProcessedUserWithSemesters } from "@/interfaces/semester";
 import Link from "next/link";
 const inter = Inter({ subsets: ["latin"] });
 

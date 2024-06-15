@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Inter } from "next/font/google";
 import React, { useEffect, useState } from "react";
-import { getJWTPayload, removeToken, useCheckToken } from "@/utils/cookie";
+import { removeToken, useCheckToken } from "@/utils/cookie";
 import {
   ProcessedCoursesResult,
 } from "@/interfaces/course";
@@ -13,10 +13,10 @@ import {
 } from "@/components/ui/popover";
 import { fetchDataAuthenticated, fetchDataAuthenticatedWithBody } from "@/utils/http";
 import { useRouter } from "next/navigation";
-import { processUserSemesters, properSemester } from "@/utils/semester";
-import { ProcessedUserWithSemesters, Semester, SemesterOfUser } from "@/interfaces/semester";
+import { properSemester } from "@/utils/semester";
+import { Semester} from "@/interfaces/semester";
 import Link from "next/link";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon } from "lucide-react";
@@ -99,7 +99,7 @@ export default function Home() {
       }
   ];
   const filtered_course_types = course_types.filter(course =>
-    (course.credit && course.credit > 0) && (course.class_count && course.class_count > 0)
+    (course.credit && parseInt(course.credit) > 0) && (course.class_count && parseInt(course.class_count) > 0)
   );
     const payload = {
       semester_id: selectedSemester?.id,
