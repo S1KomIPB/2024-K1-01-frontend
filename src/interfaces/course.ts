@@ -8,7 +8,7 @@ export interface Schedule {
 export interface CourseClass {
     id: number;
     number: number;
-    schedule?: Schedule[];
+    schedules?: Schedule[];
 }
 
 export interface CourseType {

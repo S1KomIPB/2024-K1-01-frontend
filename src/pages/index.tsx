@@ -17,6 +17,9 @@ import {
 } from "@/components/ui/popover";
 import { fetchDataAuthenticated } from "@/utils/http";
 import { useRouter } from "next/navigation";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 const inter = Inter({ subsets: ["latin"] });
 
 export default function Home() {
@@ -31,7 +34,6 @@ export default function Home() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectedCourseClass, setSelectedCourseClass] = useState<CourseClass | null>(null);
   const [processedUserData, setProcessedUserData] = useState<ProcessedCoursesResult>();
-  const [updatedSchedules, setUpdatedSchedules] = useState({});
   const [isAdmin, setIsAdmin] = useState(false);
 
   const logout = () => {
@@ -39,16 +41,49 @@ export default function Home() {
     router.push("/login");
   }
 
-  const addSchedule = async (scheduleId: number) => {
+  const fillSchedule = async (scheduleId: number) => {
     try {
       await fetchDataAuthenticated(
-        `http://localhost:5067/schedules/${scheduleId}/`,{ method: "PUT" }
+        `http://localhost:5067/schedules/${scheduleId}/fill`,{ method: "PUT" }
       );
-      setUpdatedSchedules((prev) => ({ ...prev, [scheduleId]: true }));
+      setSelectedCourseClass(prevClass => {
+        if (prevClass && prevClass.schedules) {
+          const updatedSchedules = prevClass.schedules.map(schedule => {
+            if (schedule.id === scheduleId) {
+              return { ...schedule, teacher_initial: processedUserData?.initials, teacher_id: processedUserData?.id };
+            }
+            return schedule;
+          });
+          return { ...prevClass, schedules: updatedSchedules };
+        }
+        return prevClass;
+      });
     } catch (error) {
       console.error(error);
     }
   };
+
+  const clearSchedule = async (scheduleId: number) => {
+    try {
+      await fetchDataAuthenticated(
+        `http://localhost:5067/schedules/${scheduleId}/clear`,{ method: "PUT" }
+      );
+      setSelectedCourseClass(prevClass => {
+        if (prevClass && prevClass.schedules) {
+          const updatedSchedules = prevClass.schedules.map(schedule => {
+            if (schedule.id === scheduleId) {
+              return { ...schedule, teacher_initial: null, teacher_id: null };
+            }
+            return schedule;
+          });
+          return { ...prevClass, schedules: updatedSchedules };
+        }
+        return prevClass;
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  }
 
   const fetchCourse = async (id: number) => {
     try {
@@ -160,15 +195,30 @@ export default function Home() {
           <h4 className="mb-4 text-sm font-medium leading-none">Schedule</h4>
           <div className="grid grid-cols-3 gap-4">
             {selectedCourseClass &&
-              selectedCourseClass.schedule &&
-              selectedCourseClass.schedule.map((schedule) => (
+              selectedCourseClass.schedules &&
+              selectedCourseClass.schedules.map((schedule) => (
                 <React.Fragment key={schedule.id}>
                   {(schedule.teacher_initial ===
                     processedUserData?.initials && (
-                    <Button className="text-sm">
-                      {schedule.meet_number} | {schedule.teacher_initial}
-                    </Button>
-                  )) ||
+                      <Popover>
+                        <PopoverTrigger>
+                            <Button
+                              className="text-sm w-full"
+                            >
+                              {schedule.meet_number} | {schedule.teacher_initial}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent>
+                          <Button
+                            onClick={() => clearSchedule(schedule.id)}
+                            variant="outline"
+                            className="text-sm w-full"
+                          >
+                            Clear
+                          </Button>
+                        </PopoverContent>
+                      </Popover>
+                    )) ||
                     (schedule.teacher_initial && (
                       <Button className="text-sm" disabled>
                         {schedule.meet_number} | {schedule.teacher_initial}
@@ -176,24 +226,20 @@ export default function Home() {
                     )) || (
                       <Popover>
                         <PopoverTrigger>
-                          {(updatedSchedules[schedule.id] && (
-                            <Button className="text-sm w-full">{`${schedule.meet_number} | ${processedUserData?.initials}`}</Button>
-                          )) || (
                             <Button
                               variant="outline"
                               className="text-sm w-full"
                             >
                               {schedule.meet_number}
                             </Button>
-                          )}
                         </PopoverTrigger>
                         <PopoverContent>
                           <Button
-                            onClick={() => addSchedule(schedule.id)}
+                            onClick={() => fillSchedule(schedule.id)}
                             variant="outline"
                             className="text-sm w-full"
                           >
-                            {updatedSchedules[schedule.id] ? "Remove" : "Fill"}
+                            Fill
                           </Button>
                         </PopoverContent>
                       </Popover>
@@ -210,6 +256,56 @@ export default function Home() {
               Initials: {processedUserData?.initials}
             </div>
             <div className="text-sm">BKD: {processedUserData?.bkd}</div>
+            <Dialog>
+              <DialogTrigger asChild>
+                <div>
+                  <Button variant="outline">Change Password</Button>
+                </div>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Change Password</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-5 items-center gap-4">
+                    <Label htmlFor="old-password" className="col-span-2 text-right">
+                      Old Password
+                    </Label>
+                    <Input
+                      id="old-password"
+                      name="old_password"
+                      className="col-span-3"
+                      type="password"
+                    />
+                  </div>
+                  <div className="grid grid-cols-5 items-center gap-4">
+                    <Label htmlFor="new-password" className="col-span-2 text-right">
+                      New Password
+                    </Label>
+                    <Input
+                      id="new-password"
+                      name="new_password"
+                      className="col-span-3"
+                      type="password"
+                    />
+                  </div>
+                  <div className="grid grid-cols-5 items-center gap-4">
+                    <Label htmlFor="confirm-password" className="col-span-2 text-right">
+                      Confirm Password
+                    </Label>
+                    <Input
+                      id="confirm-password"
+                      name="confirm_password"
+                      className="col-span-3"
+                      type="password"
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button type="submit" className="grid-cols-3">Save changes</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </Card>
         <ScrollArea className="h-[40vh] rounded-md border p-4">
