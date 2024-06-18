@@ -4,9 +4,6 @@ import { Inter } from "next/font/google";
 import React, { useEffect, useState } from "react";
 import { removeToken, useCheckToken } from "@/utils/cookie";
 import {
-  ProcessedCoursesResult,
-} from "@/interfaces/course";
-import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -19,12 +16,25 @@ import Link from "next/link";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, TrashIcon } from "lucide-react";
 import { format } from "date-fns";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Input } from "@/components/ui/input";
+import { 
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDanger,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger 
+} from "@/components/ui/alert-dialog";
+import { Card } from "@/components/ui/card";
+import BarChartComponent from "@/components/barchart";
 const inter = Inter({ subsets: ["latin"] });
 
 const SemesterFormSchema = z.object({
@@ -128,10 +138,10 @@ export default function Home() {
 
   useCheckToken();
   const router = useRouter();
+  
   const [semesters, setSemesters] = useState<Semester[]>([]);
   const [selectedSemester, setSelectedSemester] = useState<Semester | null>(null);
-  const [processedUserData, setProcessedUserData] = useState<ProcessedCoursesResult>();
-  const [updatedSchedules, setUpdatedSchedules] = useState({});
+  const [selectedSemesterBKD, setSelectedSemesterBKD] = useState([]);
 
   const logout = () => {
     removeToken();
@@ -155,6 +165,35 @@ export default function Home() {
       console.error(error);
     }
   }
+
+  const deleteSemester = (id: number) => async () => {
+    try {
+      await fetchDataAuthenticated(
+        `http://localhost:5067/semesters/${id}`,
+        { method: "DELETE" }
+      );
+      setSemesters((prev) => prev.filter((semester) => semester.id !== id));
+      setSelectedSemester(null);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  const deleteCourse = (id: number) => async () => {
+    try {
+      await fetchDataAuthenticated(
+        `http://localhost:5067/courses/${id}`,
+        { method: "DELETE" }
+      );
+      setSelectedSemester((prev) => prev && {
+        ...prev,
+        courses: prev.courses.filter((course) => course.id !== id),
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
   const fetchSemesters = async (id: number) => {
     try {
       const response = await fetchDataAuthenticated(
@@ -162,6 +201,11 @@ export default function Home() {
         { method: "GET" }
       );
       setSelectedSemester(response.data as Semester);
+      const bkdresponse = await fetchDataAuthenticated(
+        `http://localhost:5067/users/semesters/${id}`,
+        { method: "GET" }
+      );
+      setSelectedSemesterBKD(bkdresponse.data);
     } catch (error) {
       console.error(error);
     }
@@ -193,12 +237,11 @@ export default function Home() {
           <Link href="/admin/semesters"><Button variant="outline" className="ml-4">Semester</Button></Link>
         </span>
         <span className="text-lg">
-          Logged in as {processedUserData?.name}
           <Button onClick={logout} variant="outline" className="ml-4">Logout</Button>
         </span>
       </div>
-      <div className="grid grid-cols-3 w-full gap-5">
-        <ScrollArea className="h-[80vh] rounded-md border p-4">
+      <div className="grid grid-rows-2 grid-cols-3 w-full gap-5">
+        <ScrollArea className="h-[80vh] row-span-2 rounded-md border p-4">
           <h4 className="mb-4 text-sm font-medium leading-none">Semesters</h4>
           <div className="grid grid-cols-1 gap-2">
           <Form {...semesterForm}>
@@ -262,24 +305,43 @@ export default function Home() {
               ))}
           </div>
         </ScrollArea>
-        <ScrollArea className="h-[80vh] rounded-md border p-4">
+        <ScrollArea className="h-[40vh] rounded-md border p-4">
           {selectedSemester && (
             <div>
               <h4 className="mb-4 text-sm font-medium leading-none">
                 Courses of {properSemester(selectedSemester.date)}
               </h4>
               {!selectedSemester.is_active && (
-                <Button
-                  onClick={setActive(selectedSemester.id)}
-                  variant="outline"
-                  className="text-sm my-1"
-                >
-                  Activate
-                </Button>
+                <div>
+                  <Button
+                    onClick={setActive(selectedSemester.id)}
+                    variant="outline"
+                    className="text-sm my-1 me-1"
+                  >
+                    Activate
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive">Delete</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will permanently delete the <code><strong>{properSemester(selectedSemester.date)}</strong></code> semester.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogDanger onClick={deleteSemester(selectedSemester.id)}>Delete</AlertDialogDanger>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               )}
             </div>
           )}
-          <div className="grid grid-cols-1 gap-2">
+          <div className="grid grid-cols-8 gap-2">
             {selectedSemester &&
               selectedSemester.courses &&
               selectedSemester.courses
@@ -288,15 +350,43 @@ export default function Home() {
                   <React.Fragment key={course.id}>
                     <Button
                       variant="outline"
-                      className="text-sm my-1"
+                      className="text-sm my-1 col-span-7"
                     >
-                      {course.code} : {course.name}
+                      {course.code} - {course.name} - SKS({
+                            course.course_type.find(ct => ct.type === 0) ? course.course_type.find(ct => ct.type === 0).credit : 0
+                        }/{
+                            course.course_type.find(ct => ct.type === 1) ? course.course_type.find(ct => ct.type === 1).credit : 0
+                        }/{
+                            course.course_type.find(ct => ct.type === 2) ? course.course_type.find(ct => ct.type === 2).credit : 0
+                        })
                     </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                        variant="destructive"
+                        className="text-sm my-1"
+                      >
+                        <TrashIcon />
+                      </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the <code><strong>{course.code} - {course.name}</strong></code> course.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogDanger onClick={deleteCourse(course.id)}>Delete</AlertDialogDanger>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </React.Fragment>
                 )}
           </div>
         </ScrollArea>
-        <ScrollArea className="h-[80vh] rounded-md border p-4">
+        <ScrollArea className="h-[40vh] rounded-md border p-4">
           {selectedSemester && (
             <div>
               <h4 className="mb-4 text-sm font-medium leading-none">
@@ -430,6 +520,14 @@ export default function Home() {
           )}
           
         </ScrollArea>
+        <Card className="h-[40vh] col-span-2 rounded-md border p-4">
+          {selectedSemester && (
+            <div>
+              <h4 className="mb-4 text-sm font-medium leading-none">BKD Graph for {properSemester(selectedSemester.date)}</h4>
+              <BarChartComponent data={selectedSemesterBKD} />
+            </div>
+          )}
+        </Card>
       </div>
     </main>
   );

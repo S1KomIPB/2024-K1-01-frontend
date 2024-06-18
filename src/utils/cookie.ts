@@ -18,6 +18,15 @@ export const useCheckToken = () => {
         if (!jwt){
             router.push('/login');
         }
+        if (jwt){
+            const payload = jwt.split('.')[1];
+            const decodedPayload = atob(payload);
+            const parsedPayload = JSON.parse(decodedPayload);
+            if (parsedPayload.exp < Date.now() / 1000){
+                removeToken();
+                router.push('/login');
+            }
+        }
     }, [router]);
 }
 

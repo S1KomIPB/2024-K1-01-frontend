@@ -4,12 +4,15 @@ import { Inter } from "next/font/google";
 import React, { useEffect, useState } from "react";
 import { removeToken, useCheckToken } from "@/utils/cookie";
 import { ProcessedCoursesResult } from "@/interfaces/course";
-import { fetchDataAuthenticated } from "@/utils/http";
+import { fetchDataAuthenticated, fetchDataAuthenticatedWithBody } from "@/utils/http";
 import { useRouter } from "next/navigation";
-import { User } from "@/interfaces/user";
+import { NewUser, User } from "@/interfaces/user";
 import { processUserSemesters } from "@/utils/semester";
 import { ProcessedUserWithSemesters } from "@/interfaces/semester";
 import Link from "next/link";
+import { DialogHeader, DialogFooter, Dialog, DialogTrigger, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 const inter = Inter({ subsets: ["latin"] });
 
 export default function Home() {
@@ -25,10 +28,32 @@ export default function Home() {
   const [selectedSemester, setSelectedSemester] = useState<ProcessedCoursesResult | null>(null);
   const [processedUserData, setProcessedUserData] = useState<ProcessedCoursesResult>();
   const [updatedSchedules, setUpdatedSchedules] = useState({});
+  const [newUser, setNewUser] = useState<NewUser | null>(null);
+  const [createUserError, setCreateUserError] = useState("");
+  const [createUserSuccess, setCreateUserSuccess] = useState("");
 
   const logout = () => {
     removeToken();
     router.push("/login");
+  }
+
+  const createUser = async () => {
+    try {
+      if (newUser.initials.length !== 3) {
+        throw new Error("Initials must be 3 characters long");
+      }
+      await fetchDataAuthenticatedWithBody(
+        "http://localhost:5067/users",
+        { 
+          method: "POST",
+          body: JSON.stringify(newUser)
+        }
+      );
+      setCreateUserSuccess("User created successfully");
+    } catch (error) {
+      console.error(error);
+      setCreateUserError(error.message);
+    }
   }
 
   const fetchUserSemesters = async (id: number) => {
@@ -78,6 +103,110 @@ export default function Home() {
         <ScrollArea className="h-[80vh] rounded-md border p-4">
           <h4 className="mb-4 text-sm font-medium leading-none">Users</h4>
           <div className="grid grid-cols-1 gap-2">
+          <Dialog>
+              <DialogTrigger asChild>
+                <div>
+                  <Button variant="outline">Create user</Button>
+                </div>
+              </DialogTrigger>
+                
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Create user</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-5 items-center gap-4">
+                    <Label htmlFor="name" className="col-span-2 text-right">
+                      Name
+                    </Label>
+                    <Input
+                      id="name"
+                      name="name"
+                      className="col-span-3"
+                      type="text"
+                      onChange={(e) => {
+                        setNewUser({ ...newUser, name: e.target.value });
+                        setCreateUserError("");
+                      }}
+                    />
+                  </div>
+                  <div className="grid grid-cols-5 items-center gap-4">
+                    <Label htmlFor="initials" className="col-span-2 text-right">
+                      Initials
+                    </Label>
+                    <Input
+                      id="initials"
+                      name="initials"
+                      className="col-span-3"
+                      type="text"
+                      onChange={(e) => {
+                        setNewUser({ ...newUser, initials: e.target.value.toUpperCase() });
+                        setCreateUserError("");
+                      }}
+                    />
+                  </div>
+                  <div className="grid grid-cols-5 items-center gap-4">
+                    <Label htmlFor="password" className="col-span-2 text-right">
+                      Password
+                    </Label>
+                    <Input
+                      id="password"
+                      name="password"
+                      className="col-span-3"
+                      type="password"
+                      onChange={(e) => {
+                        setNewUser({ ...newUser, password: e.target.value });
+                        setCreateUserError("");
+                      }}
+                    />
+                  </div>
+                  <div className="grid grid-cols-5 items-center gap-4">
+                    <Label htmlFor="is_admin" className="col-span-2 text-right">
+                      Admin
+                    </Label>
+                    <Input
+                      id="is_admin"
+                      name="is_admin"
+                      className="col-span-3"
+                      type="checkbox"
+                      onChange={(e) => {
+                        setNewUser({ ...newUser, is_admin: e.target.checked });
+                        setCreateUserError("");
+                      }}
+                    />
+                  </div>
+                  <div className="grid grid-cols-5 items-center gap-4">
+                    <Label htmlFor="is_active" className="col-span-2 text-right">
+                      Active
+                    </Label>
+                    <Input
+                      id="is_active"
+                      name="is_active"
+                      className="col-span-3"
+                      type="checkbox"
+                      onChange={(e) => {
+                        setNewUser({ ...newUser, is_active: e.target.checked });
+                        setCreateUserError("");
+                      }}
+                    />
+                  </div>
+                  {createUserError && (
+                    <div className="text-red-500">{createUserError}</div>
+                  )}
+                  {createUserSuccess && (
+                    <div className="text-green-500">User created successfully</div>
+                  )}
+                </div>
+                <DialogFooter>
+                  <Button
+                    onClick={createUser}
+                    className="grid-cols-3"
+                  >
+                    Save changes
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             {users &&
               users.map((user) => (
                 <React.Fragment key={user.id}>

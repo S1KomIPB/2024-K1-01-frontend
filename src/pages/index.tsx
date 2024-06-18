@@ -15,7 +15,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { fetchDataAuthenticated } from "@/utils/http";
+import { fetchDataAuthenticated, fetchDataAuthenticatedWithBody } from "@/utils/http";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -34,11 +34,40 @@ export default function Home() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectedCourseClass, setSelectedCourseClass] = useState<CourseClass | null>(null);
   const [processedUserData, setProcessedUserData] = useState<ProcessedCoursesResult>();
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [changePasswordError, setChangePasswordError] = useState("");
+  const [changePasswordSuccess, setChangePasswordSuccess] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
   const logout = () => {
     removeToken();
     router.push("/login");
+  }
+
+  const changePassword = async () => {
+    try {
+      if (newPassword !== confirmNewPassword) {
+        throw new Error("New password and confirm new password must be the same");
+      }
+      const payload = {
+        old_password: oldPassword,
+        new_password: newPassword,
+        confirm_new_password: confirmNewPassword,
+      };
+      await fetchDataAuthenticatedWithBody(
+        "http://localhost:5067/auth/password",
+        { 
+          method: "PUT",
+          body: JSON.stringify(payload),
+        }
+      )
+      setChangePasswordSuccess(true);
+    } catch (error) {
+      console.error(error);
+      setChangePasswordError(error.message);
+    }
   }
 
   const fillSchedule = async (scheduleId: number) => {
@@ -110,6 +139,7 @@ export default function Home() {
       console.error(error);
     }
   };
+
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -262,6 +292,7 @@ export default function Home() {
                   <Button variant="outline">Change Password</Button>
                 </div>
               </DialogTrigger>
+                
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                   <DialogTitle>Change Password</DialogTitle>
@@ -276,6 +307,10 @@ export default function Home() {
                       name="old_password"
                       className="col-span-3"
                       type="password"
+                      onChange={(e) => {
+                        setOldPassword(e.target.value);
+                        setChangePasswordError("");
+                      }}
                     />
                   </div>
                   <div className="grid grid-cols-5 items-center gap-4">
@@ -287,22 +322,41 @@ export default function Home() {
                       name="new_password"
                       className="col-span-3"
                       type="password"
+                      onChange={(e) => {
+                        setNewPassword(e.target.value);
+                        setChangePasswordError("");
+                      }}
                     />
                   </div>
                   <div className="grid grid-cols-5 items-center gap-4">
-                    <Label htmlFor="confirm-password" className="col-span-2 text-right">
+                    <Label htmlFor="confirm-new-password" className="col-span-2 text-right">
                       Confirm Password
                     </Label>
                     <Input
-                      id="confirm-password"
-                      name="confirm_password"
+                      id="confirm-new-password"
+                      name="confirm_new_password"
                       className="col-span-3"
                       type="password"
+                      onChange={(e) => {
+                        setConfirmNewPassword(e.target.value);
+                        setChangePasswordError("");
+                      }}
                     />
                   </div>
+                  {changePasswordError && (
+                    <div className="text-red-500">{changePasswordError}</div>
+                  )}
+                  {changePasswordSuccess && (
+                    <div className="text-green-500">Password changed successfully</div>
+                  )}
                 </div>
                 <DialogFooter>
-                  <Button type="submit" className="grid-cols-3">Save changes</Button>
+                  <Button
+                    onClick={changePassword}
+                    className="grid-cols-3"
+                  >
+                    Save changes
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>

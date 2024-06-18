@@ -28,7 +28,12 @@ export const fetchDataAuthenticatedWithBody = async (url: string | URL | Request
     };
     const response = await fetch(url, options);
     if (!response.ok) {
-        throw new Error('Failed to fetch data');
+        if (response.body) {
+            const error = await response.json();
+            throw new Error(error.message);
+        } else {
+            throw new Error('Failed to fetch data');
+        }
     }
     return response.json();
 }
